@@ -383,12 +383,16 @@ Open a new terminal or re-source your shell config to pick it up."
   # user sets OLLAMA=skip; default-y vs default-n depends on current state.
   handle_ollama
 
-  printf "\n${BOLD}Next step:${RESET} pair this daemon with your manager.\n"
-  printf "  1. Open your Chiron board in a browser.\n"
-  printf "  2. Click ${CYAN}+ New Agent${RESET} → ${CYAN}Local runtime (daemon)${RESET}.\n"
-  printf "  3. Walk through Name → GitHub → Project → ${BOLD}Pair Daemon${RESET}.\n"
-  printf "  4. Copy the ${CYAN}chiron setup --code … --server …${RESET} line and run it here.\n"
-  printf "  5. Then run ${CYAN}chiron start${RESET} to begin polling for tasks.\n\n"
+  # Agnostic next-step copy. The user might be:
+  #   (a) already on the wizard's Pair-Daemon step (came here via "click here
+  #       to install" hint) — they just need the setup line + chiron start.
+  #   (b) starting fresh from documentation — they'll find the wizard on
+  #       their own; we just point them at it without prescribing 5 steps
+  #       they may already be past.
+  printf "\n${BOLD}Next:${RESET} from your Chiron board's ${BOLD}Pair Daemon${RESET} step,\n"
+  printf "copy the ${CYAN}chiron setup --code ... --server ...${RESET} line and run it here.\n"
+  printf "Then run ${CYAN}chiron start${RESET} to begin polling for tasks.\n\n"
+  printf "${DIM}New to Chiron? Open the board → ${CYAN}+ New Agent${RESET}${DIM} → ${CYAN}Local runtime (daemon)${RESET}${DIM} to get the setup line.${RESET}\n\n"
 }
 
 main "$@"
