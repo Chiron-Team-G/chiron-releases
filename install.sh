@@ -140,7 +140,13 @@ install_binary() {
     target="/usr/local/bin/chiron"
     mv "$BINARY_PATH" "$target"
   elif command_exists sudo; then
-    info "/usr/local/bin needs sudo. You'll be prompted for your password ..."
+    # Pre-announce: the next line will trigger sudo's password prompt. Without
+    # this warning, the password input appears unexpectedly mid-install which
+    # is confusing and looks like a hang. The pre-announce gives the user a
+    # second to recognize it's coming.
+    printf "\n${BOLD}${YELLOW}⚠${RESET}  ${BOLD}sudo password required${RESET} to install chiron to ${CYAN}/usr/local/bin${RESET}.\n"
+    printf "   ${DIM}(Skip sudo by re-running as a user with /usr/local/bin write access,\n"
+    printf "    or chiron will fall back to ${CYAN}~/.local/bin${RESET}${DIM} on the next attempt.)${RESET}\n\n"
     if sudo mv "$BINARY_PATH" "/usr/local/bin/chiron"; then
       target="/usr/local/bin/chiron"
     fi
@@ -185,7 +191,11 @@ Open a new terminal or re-source your shell config to pick it up."
   printf "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n\n"
 
   printf "${BOLD}Next step:${RESET} pair this daemon with your manager.\n"
-  printf "Run the ${CYAN}chiron setup ...${RESET} command shown in the wizard.\n\n"
+  printf "  1. Open your Chiron board in a browser.\n"
+  printf "  2. Click ${CYAN}+ New Agent${RESET} → ${CYAN}Local runtime (daemon)${RESET}.\n"
+  printf "  3. Walk through Name → GitHub → Project → ${BOLD}Pair Daemon${RESET}.\n"
+  printf "  4. Copy the ${CYAN}chiron setup --code … --server …${RESET} line and run it here.\n"
+  printf "  5. Then run ${CYAN}chiron start${RESET} to begin polling for tasks.\n\n"
 
   printf "${BOLD}Optional:${RESET} enable local semantic search over your knowledge\n"
   printf "  ${CYAN}brew install ollama && ollama pull nomic-embed-text${RESET}\n"
