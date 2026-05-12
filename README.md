@@ -4,27 +4,46 @@ Binary releases of the Chiron daemon — a local runtime bridge between Ditto cl
 
 ## Install
 
+### Option A — Install and pair in one shot (recommended)
+
+The Engineer board's *New Agent → Local runtime (daemon)* wizard gives you this
+single command, already filled with your one-time pairing code:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh \
+  | bash -s -- --code CHIR-XXXXXX-XXXXXX --server https://your-manager.example.com
+```
+
+What it does:
+
+1. Detects whether `chiron` is already installed on this machine and
+   skips the download if so (useful when you're pairing a 2nd agent on
+   the same machine — config.json just gets a new entry).
+2. If it's a fresh install, downloads the matching tarball from the
+   latest release, verifies SHA-256 against `checksums.txt`, drops the
+   binary at `/usr/local/bin/chiron` (or `~/.local/bin/chiron` without
+   sudo).
+3. Offers to install Ollama for semantic search (optional — see below).
+4. Runs `chiron setup --code … --server …` to authenticate this daemon
+   against your Chiron manager. Credentials are stored in
+   `~/.chiron/config.json` (`chmod 0600`, raw token local-only).
+
+Then run `chiron start` in this terminal to begin polling for tasks.
+
+### Option B — Install only (manual pair later)
+
+If you just want the binary on your PATH (no pairing yet):
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh | bash
 ```
 
-The installer:
-
-1. Detects your platform (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`)
-2. Downloads the matching tarball from the latest release
-3. Verifies SHA-256 against `checksums.txt`
-4. Drops the binary at `/usr/local/bin/chiron` (or `~/.local/bin/chiron` without sudo)
-
-## After installing
-
-Pair the daemon with your manager using the command shown in the Engineer board's *New Agent → Local runtime* wizard:
+Pair manually when you're ready:
 
 ```bash
-chiron setup --code CHIR-XXXX-XXXX --server https://your-manager.example.com
+chiron setup --code CHIR-XXXXXX-XXXXXX --server https://your-manager.example.com
 chiron start
 ```
-
-The daemon will start polling for tasks assigned to this agent.
 
 ## Optional: enable semantic search
 

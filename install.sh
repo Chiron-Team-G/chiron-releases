@@ -6,15 +6,30 @@
 # release's `checksums.txt`, then drops the binary at /usr/local/bin
 # (or ~/.local/bin if /usr/local/bin is not writable).
 #
+# If chiron is already installed (and runnable), the binary install is
+# skipped — we go straight to `chiron setup` when --code is passed,
+# so a second agent on the same machine just adds itself to the
+# existing config.json without re-downloading anything.
+#
 # Usage:
+#
+#   # Install only (legacy — user runs `chiron setup` manually after):
 #   curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh | bash
 #
-# After installation:
+#   # Install + pair in one shot (preferred — the Engineer wizard uses this):
+#   curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh \
+#     | bash -s -- --code CHIR-XXXXXX-XXXXXX --server https://your-manager
+#
+# Optional flags:
+#   --code <CHIR-XXXXXX-XXXXXX>   one-time pairing code from the Engineer board
+#   --server <url>                Engineers Backend URL (default: http://localhost:3011)
+#
+# After installation (or when --code is omitted):
 #   chiron setup --code <CHIR-XXXX> --server <https://your-manager>
 #   chiron start
 #
 # Optional: install Ollama to enable local semantic search over your
-# accumulated knowledge:
+# accumulated knowledge (this script auto-detects + offers it):
 #   brew install ollama && ollama pull nomic-embed-text
 #
 set -euo pipefail
@@ -45,6 +60,48 @@ warn()  { printf "${BOLD}${YELLOW}⚠${RESET} %s\n" "$*" >&2; }
 fail()  { printf "${BOLD}${RED}✗${RESET} %s\n" "$*" >&2; exit 1; }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+#
+# Accepted flags (all optional):
+#   --code <CHIR-XXXXXX-XXXXXX>   pair the daemon right after install
+#   --server <url>                Engineers Backend URL for the pair step
+#
+# Both flags are passed-through verbatim to `chiron setup`. When --code is
+# missing we just install (or skip) and print the manual setup hint.
+# ---------------------------------------------------------------------------
+SETUP_CODE=""
+SETUP_SERVER=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --code)
+      SETUP_CODE="${2:-}"
+      shift 2 || fail "--code requires a value"
+      ;;
+    --code=*)
+      SETUP_CODE="${1#--code=}"
+      shift
+      ;;
+    --server)
+      SETUP_SERVER="${2:-}"
+      shift 2 || fail "--server requires a value"
+      ;;
+    --server=*)
+      SETUP_SERVER="${1#--server=}"
+      shift
+      ;;
+    -h|--help)
+      printf "Usage: install.sh [--code CHIR-XXXXXX-XXXXXX] [--server URL]\n"
+      exit 0
+      ;;
+    *)
+      warn "Ignoring unknown argument: $1"
+      shift
+      ;;
+  esac
+done
 
 # ---------------------------------------------------------------------------
 # Detect platform
@@ -413,33 +470,106 @@ handle_ollama() {
 }
 
 # ---------------------------------------------------------------------------
+# Detect whether chiron is already installed AND runnable.
+#
+# We don't trust just `command -v chiron` — a broken binary on the PATH
+# (corrupted download, partial extraction, etc.) would silently skip the
+# re-install and then make `chiron setup` blow up with a useless error.
+# Calling `chiron --version` proves the binary actually executes.
+#
+# Sets CHIRON_PRESENT="yes" when the binary is good, "no" otherwise.
+# ---------------------------------------------------------------------------
+detect_existing_chiron() {
+  if ! command_exists chiron; then
+    CHIRON_PRESENT="no"
+    return
+  fi
+  if ! chiron --version >/dev/null 2>&1; then
+    warn "Found chiron at $(command -v chiron) but it doesn't run — will reinstall."
+    CHIRON_PRESENT="no"
+    return
+  fi
+  CHIRON_PRESENT="yes"
+  INSTALL_PATH="$(command -v chiron)"
+}
+
+# ---------------------------------------------------------------------------
+# Run `chiron setup` automatically when --code was passed.
+#
+# Falls back to printing the manual command if anything fails — we never
+# want a setup error to leave the user without a copy-pasteable rescue.
+# ---------------------------------------------------------------------------
+run_setup_if_requested() {
+  if [ -z "$SETUP_CODE" ]; then
+    return
+  fi
+
+  local server_arg=""
+  if [ -n "$SETUP_SERVER" ]; then
+    server_arg="--server $SETUP_SERVER"
+  fi
+
+  printf "\n${BOLD}${CYAN}==>${RESET} Pairing this daemon with code ${BOLD}${SETUP_CODE}${RESET}\n"
+  # shellcheck disable=SC2086  # we want word-splitting on $server_arg
+  if chiron setup --code "$SETUP_CODE" $server_arg; then
+    printf "\n${BOLD}${GREEN}✓${RESET} Daemon paired. Run ${CYAN}chiron start${RESET} in this terminal to begin polling for tasks.\n\n"
+  else
+    warn "Pairing failed. You can retry manually with:"
+    if [ -n "$SETUP_SERVER" ]; then
+      printf "    ${CYAN}chiron setup --code ${SETUP_CODE} --server ${SETUP_SERVER}${RESET}\n"
+    else
+      printf "    ${CYAN}chiron setup --code ${SETUP_CODE}${RESET}\n"
+    fi
+    printf "    ${CYAN}chiron start${RESET}\n\n"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
   printf "\n${BOLD}  Chiron daemon installer${RESET}\n\n"
 
-  detect_platform
-  ok "Detected platform: ${PLATFORM}"
+  # First, see if we can skip the download entirely. A second agent on the
+  # same machine just needs `chiron setup` against a new code — no need to
+  # re-fetch the same binary.
+  detect_existing_chiron
 
-  fetch_latest_tag
-  ok "Latest release: ${TAG}"
+  if [ "$CHIRON_PRESENT" = "yes" ]; then
+    ok "chiron already installed at ${INSTALL_PATH} — skipping download"
+  else
+    detect_platform
+    ok "Detected platform: ${PLATFORM}"
 
-  download_and_verify
-  install_binary
-  ok "Installed at ${INSTALL_PATH}"
+    fetch_latest_tag
+    ok "Latest release: ${TAG}"
 
-  if ! command_exists chiron; then
-    warn "chiron is installed but not yet on PATH in this shell session.
+    download_and_verify
+    install_binary
+    ok "Installed at ${INSTALL_PATH}"
+
+    if ! command_exists chiron; then
+      warn "chiron is installed but not yet on PATH in this shell session.
 Open a new terminal or re-source your shell config to pick it up."
+    fi
+
+    printf "\n${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    printf "${BOLD}${GREEN}  ✓ Chiron daemon is ready!${RESET}\n"
+    printf "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n\n"
+
+    # Detect Ollama state + interactive prompts. Skipped entirely when the
+    # user sets OLLAMA=skip; default-y vs default-n depends on current state.
+    # Only runs on FIRST install — re-running the installer to pair a 2nd
+    # agent shouldn't re-prompt Ollama setup.
+    handle_ollama
   fi
 
-  printf "\n${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
-  printf "${BOLD}${GREEN}  ✓ Chiron daemon is ready!${RESET}\n"
-  printf "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n\n"
-
-  # Detect Ollama state + interactive prompts. Skipped entirely when the
-  # user sets OLLAMA=skip; default-y vs default-n depends on current state.
-  handle_ollama
+  # If --code was passed (the "single-paste install + pair" flow from the
+  # Engineer wizard), pair right now. Otherwise print the next-steps hint.
+  if [ -n "$SETUP_CODE" ]; then
+    run_setup_if_requested
+    return
+  fi
 
   # Agnostic next-step copy. The user might be:
   #   (a) already on the wizard's Pair-Daemon step (came here via "click here
