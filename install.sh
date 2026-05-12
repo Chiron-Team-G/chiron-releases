@@ -7,7 +7,7 @@
 # (or ~/.local/bin if /usr/local/bin is not writable).
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/constantinostrada/chiron-releases/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh | bash
 #
 # After installation:
 #   chiron setup --code <CHIR-XXXX> --server <https://your-manager>
@@ -22,7 +22,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-REPO="constantinostrada/chiron-releases"
+REPO="Chiron-Team-G/chiron-releases"
 GITHUB_API="https://api.github.com/repos/$REPO"
 GITHUB_DL="https://github.com/$REPO/releases/download"
 

@@ -5,7 +5,7 @@ Binary releases of the Chiron daemon — a local runtime bridge between Ditto cl
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/constantinostrada/chiron-releases/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Chiron-Team-G/chiron-releases/main/install.sh | bash
 ```
 
 The installer:
@@ -38,7 +38,7 @@ Runs 100% on your machine — nothing leaves the laptop.
 
 ## Manual install (Windows or other)
 
-If the installer doesn't support your platform yet, download the matching archive from the [latest release](https://github.com/constantinostrada/chiron-releases/releases/latest), verify against `checksums.txt`, and put the binary on your `PATH`.
+If the installer doesn't support your platform yet, download the matching archive from the [latest release](https://github.com/Chiron-Team-G/chiron-releases/releases/latest), verify against `checksums.txt`, and put the binary on your `PATH`.
 
 Available binaries per release:
 
